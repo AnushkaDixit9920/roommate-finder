@@ -52,6 +52,7 @@ public class Profile {
     @Column(length = 500)
     private String bio;
 
+    @Column(columnDefinition = "MEDIUMTEXT")
     private String profilePicture;
 
     private boolean lookingForRoom = true;

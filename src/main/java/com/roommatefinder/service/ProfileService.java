@@ -44,11 +44,11 @@ public class ProfileService {
         // Direct weights supplied — validate and apply
         if (request.getBudgetWeight() != null) {
             int total = nullToZero(request.getBudgetWeight())
-                      + nullToZero(request.getSleepWeight())
-                      + nullToZero(request.getCleanlinessWeight())
-                      + nullToZero(request.getNoiseWeight())
-                      + nullToZero(request.getPetsWeight())
-                      + nullToZero(request.getSmokingWeight());
+                    + nullToZero(request.getSleepWeight())
+                    + nullToZero(request.getCleanlinessWeight())
+                    + nullToZero(request.getNoiseWeight())
+                    + nullToZero(request.getPetsWeight())
+                    + nullToZero(request.getSmokingWeight());
             if (total != 100) throw new RuntimeException("Weights must sum to 100 (got " + total + ")");
 
             profile.setBudgetWeight(request.getBudgetWeight());
@@ -104,20 +104,16 @@ public class ProfileService {
             throw new RuntimeException("Only JPEG, PNG, and WebP images are allowed");
         }
 
-        String ext = contentType.contains("png") ? ".png" : contentType.contains("webp") ? ".webp" : ".jpg";
-        String filename = "user_" + userId + "_" + UUID.randomUUID().toString().substring(0, 8) + ext;
-
-        Path uploadPath = Paths.get(UPLOAD_DIR);
-        Files.createDirectories(uploadPath);
-        Files.copy(file.getInputStream(), uploadPath.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
-
-        String url = "/uploads/profile-pictures/" + filename;
+        // Store as base64 data URL in DB — survives redeploys unlike filesystem
+        byte[] bytes = file.getBytes();
+        String base64 = java.util.Base64.getEncoder().encodeToString(bytes);
+        String dataUrl = "data:" + contentType + ";base64," + base64;
 
         Profile profile = profileRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Complete your profile before uploading a picture"));
-        profile.setProfilePicture(url);
+        profile.setProfilePicture(dataUrl);
         profileRepository.save(profile);
-        return url;
+        return dataUrl;
     }
 
     // ── Read ────────────────────────────────────────────────────────────────
@@ -137,8 +133,8 @@ public class ProfileService {
     }
 
     public List<ProfileDTO> searchProfiles(Long userId, String city,
-                                            Integer budgetMin, Integer budgetMax,
-                                            String sleepSchedule) {
+                                           Integer budgetMin, Integer budgetMax,
+                                           String sleepSchedule) {
         Profile viewer = profileRepository.findByUserId(userId).orElse(null);
 
         Profile.SleepSchedule schedule = null;
@@ -164,7 +160,7 @@ public class ProfileService {
         int start = (int) pageable.getOffset();
         int end   = Math.min(start + pageable.getPageSize(), sorted.size());
         return new PageImpl<>(start >= sorted.size() ? List.of() : sorted.subList(start, end),
-                              pageable, sorted.size());
+                pageable, sorted.size());
     }
 
     // ── Internal helpers ────────────────────────────────────────────────────
@@ -184,18 +180,18 @@ public class ProfileService {
     private int calculateCompleteness(Profile p) {
         @SuppressWarnings("unchecked")
         java.util.function.Supplier<Boolean>[] checks = new java.util.function.Supplier[]{
-            () -> p.getCity() != null && !p.getCity().isBlank(),
-            () -> p.getBudgetMin() != null,
-            () -> p.getBudgetMax() != null,
-            () -> p.getSleepSchedule() != null,
-            () -> p.getCleanliness() != null,
-            () -> p.getNoiseLevel() != null,
-            () -> p.getGenderPreference() != null,
-            () -> p.getAge() != null,
-            () -> p.getOccupation() != null && !p.getOccupation().isBlank(),
-            () -> p.getBio() != null && !p.getBio().isBlank(),
-            () -> p.getPreferredArea() != null && !p.getPreferredArea().isBlank(),
-            () -> p.getProfilePicture() != null && !p.getProfilePicture().isBlank()
+                () -> p.getCity() != null && !p.getCity().isBlank(),
+                () -> p.getBudgetMin() != null,
+                () -> p.getBudgetMax() != null,
+                () -> p.getSleepSchedule() != null,
+                () -> p.getCleanliness() != null,
+                () -> p.getNoiseLevel() != null,
+                () -> p.getGenderPreference() != null,
+                () -> p.getAge() != null,
+                () -> p.getOccupation() != null && !p.getOccupation().isBlank(),
+                () -> p.getBio() != null && !p.getBio().isBlank(),
+                () -> p.getPreferredArea() != null && !p.getPreferredArea().isBlank(),
+                () -> p.getProfilePicture() != null && !p.getProfilePicture().isBlank()
         };
         int filled = 0;
         for (var check : checks) if ((boolean) check.get()) filled++;
