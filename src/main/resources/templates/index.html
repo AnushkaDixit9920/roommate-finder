@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoommateFinder — matched on more than just rent</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <div class="ticker-wrap">
+        <div class="ticker">
+            <span>NEW MATCH — 92% compatibility, Delhi</span>
+            <span>NEW MATCH — 87% compatibility, Bengaluru</span>
+            <span>REQUEST ACCEPTED — Mumbai</span>
+            <span>NEW MATCH — 95% compatibility, Pune</span>
+            <span>REQUEST SENT — Hyderabad</span>
+            <span>NEW MATCH — 81% compatibility, Delhi</span>
+            <span>NEW MATCH — 92% compatibility, Delhi</span>
+            <span>NEW MATCH — 87% compatibility, Bengaluru</span>
+            <span>REQUEST ACCEPTED — Mumbai</span>
+            <span>NEW MATCH — 95% compatibility, Pune</span>
+            <span>REQUEST SENT — Hyderabad</span>
+            <span>NEW MATCH — 81% compatibility, Delhi</span>
+        </div>
+    </div>
+
+    <nav class="navbar">
+        <div class="nav-brand">Roommate<span class="accent-dot">Finder</span></div>
+        <div class="nav-links" id="navLinks">
+            <a href="/login">Sign in</a>
+            <a href="/register" class="btn-primary">Register</a>
+        </div>
+        <button class="hamburger" id="hamburger" onclick="toggleNav()" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-eyebrow">Compatibility-first roommate matching</div>
+        <h1>Find roommates who fit your <em>lifestyle.</em><br/>Ranked by compatibility, not chance.</h1>
+        <p>Compatible on budget, sleep schedule, cleanliness, noise, pets and more — with a transparent score explaining every recommendation.</p>
+        <div class="hero-actions">
+            <a href="/register" class="btn-primary btn-large">Find My Match →</a>
+            <a href="/login" class="btn-outline btn-large">Sign In</a>
+        </div>
+    </section>
+
+    <section class="stat-strip">
+        <div class="stat">
+            <div class="num">6</div>
+            <div class="label">Compatibility Factors<br><span class="small">Lifestyle • Budget • Habits</span></div>
+        </div>
+        <div class="stat">
+            <div class="num">100%</div>
+            <div class="label">Explainable Matching<br><span class="small">Know why every match ranks higher</span></div>
+        </div>
+        <div class="stat">
+            <div class="num">0</div>
+            <div class="label">Endless Swipes<br><span class="small">Only ranked recommendations</span></div>
+        </div>
+        <div class="stat">
+            <div class="num">Instant</div>
+            <div class="label">Email Notifications<br><span class="small">Never miss a connection</span></div>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="feature-card">
+            <div class="feature-icon">🎯</div>
+            <h3>Smart Compatibility Score</h3>
+            <p>Every roommate receives a personalized compatibility score based on lifestyle and living preferences.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📧</div>
+            <h3>Real-Time Notifications</h3>
+            <p>Receive instant updates whenever someone sends or accepts a match request.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3>Verified Profiles</h3>
+            <p>Complete profiles with transparent preferences help you connect with confidence.</p>
+        </div>
+    </section>
+
+    <footer style="border-top:1px solid var(--line);padding:28px 0;text-align:center;color:var(--ink-dim);font-size:13px;">
+        Helping students and professionals find compatible roommates.<br><span style='font-size:12px;'>Designed & Developed by Anushka Dixit</span>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('navLinks').classList.toggle('nav-open');
+            document.getElementById('hamburger').classList.toggle('open');
+        }
+    </script>
+</body>
+</html>

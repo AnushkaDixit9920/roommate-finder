@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Browse Matches - RoommateFinder</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/dashboard" class="nav-brand">Roommate<span class="accent-dot">Finder</span></a>
+        <div class="nav-links" id="navLinks">
+            <a href="/profile">My Profile</a>
+            <a href="/messages">Messages <span id="navUnreadBadge" class="nav-badge hidden"></span></a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+    </nav>
+
+    <div class="page-container">
+        <h2>Browse Matches</h2>
+        <p class="subtitle">Ranked by <em>your</em> priorities. Scores reflect what matters most to you.</p>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>City</label>
+                    <input type="text" id="filterCity" placeholder="e.g. Delhi" oninput="debounceSearch()" />
+                </div>
+                <div class="filter-group">
+                    <label>Budget Min (₹)</label>
+                    <input type="number" id="filterBudgetMin" placeholder="0" oninput="debounceSearch()" />
+                </div>
+                <div class="filter-group">
+                    <label>Budget Max (₹)</label>
+                    <input type="number" id="filterBudgetMax" placeholder="50000" oninput="debounceSearch()" />
+                </div>
+                <div class="filter-group">
+                    <label>Sleep Schedule</label>
+                    <select id="filterSleep" onchange="runSearch()">
+                        <option value="">Any</option>
+                        <option value="EARLY_BIRD">Early Bird</option>
+                        <option value="NIGHT_OWL">Night Owl</option>
+                        <option value="FLEXIBLE">Flexible</option>
+                    </select>
+                </div>
+                <button class="btn-ghost" onclick="clearFilters()">Clear</button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="matchesList" class="matches-grid"></div>
+
+        <!-- Pagination -->
+        <div id="pagination" class="pagination-bar hidden"></div>
+    </div>
+
+    <!-- ── Compatibility Modal ───────────────────────────────────────── -->
+    <div id="compatModal" class="modal-overlay hidden" onclick="closeModalOnOverlay(event)">
+        <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-header">
+                <div>
+                    <p class="modal-title" id="modalName"></p>
+                    <p class="modal-subtitle" id="modalSubtitle"></p>
+                </div>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+                <!-- Score summary -->
+                <div class="modal-score-row">
+                    <div class="modal-score-big" id="modalScoreBig"></div>
+                    <div class="modal-score-meta">
+                        <span id="modalQualityBadge"></span>
+                        <span style="font-size:12px;color:var(--ink-dim);">compatibility score</span>
+                    </div>
+                </div>
+
+                <!-- Match Summary (natural language) -->
+                <div class="match-summary-box hidden" id="modalSummary">
+                    <div class="match-summary-label">✨ Match Summary</div>
+                    <p class="match-summary-text" id="modalSummaryText"></p>
+                </div>
+
+                <!-- Why Matched sentences -->
+                <div class="why-matched" id="modalWhyMatched"></div>
+
+                <!-- Per-factor breakdown -->
+                <div class="modal-breakdown-title">Factor Breakdown</div>
+                <div class="breakdown-rows" id="modalBreakdownRows"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login';
+
+        let currentPage = 0;
+        const PAGE_SIZE = 6;
+        let debounceTimer;
+        let filterActive = false;
+
+        function debounceSearch() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(runSearch, 400);
+        }
+
+        function runSearch() {
+            currentPage = 0;
+            const city      = document.getElementById('filterCity').value.trim();
+            const budgetMin = document.getElementById('filterBudgetMin').value;
+            const budgetMax = document.getElementById('filterBudgetMax').value;
+            const sleep     = document.getElementById('filterSleep').value;
+            filterActive = !!(city || budgetMin || budgetMax || sleep);
+            filterActive ? loadFiltered(city, budgetMin, budgetMax, sleep) : loadPage(0);
+        }
+
+        async function loadFiltered(city, budgetMin, budgetMax, sleep) {
+            const params = new URLSearchParams();
+            if (city)      params.append('city', city);
+            if (budgetMin) params.append('budgetMin', budgetMin);
+            if (budgetMax) params.append('budgetMax', budgetMax);
+            if (sleep)     params.append('sleepSchedule', sleep);
+            const res = await fetch('/api/profiles/search?' + params, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const profiles = await res.json();
+            renderCards(profiles);
+            document.getElementById('pagination').classList.add('hidden');
+        }
+
+        function clearFilters() {
+            ['filterCity','filterBudgetMin','filterBudgetMax'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('filterSleep').value = '';
+            filterActive = false;
+            loadPage(0);
+        }
+
+        async function loadPage(page) {
+            currentPage = page;
+            const res = await fetch(`/api/profiles/matches/paged?page=${page}&size=${PAGE_SIZE}`, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await res.json();
+            renderCards(data.content);
+            renderPagination(data.number, data.totalPages);
+        }
+
+        function renderPagination(page, totalPages) {
+            const bar = document.getElementById('pagination');
+            if (totalPages <= 1) { bar.classList.add('hidden'); return; }
+            bar.classList.remove('hidden');
+            let html = `<button class="page-btn" onclick="loadPage(${page-1})" ${page===0?'disabled':''}>← Prev</button>`;
+            for (let i = 0; i < totalPages; i++)
+                html += `<button class="page-btn ${i===page?'active':''}" onclick="loadPage(${i})">${i+1}</button>`;
+            html += `<button class="page-btn" onclick="loadPage(${page+1})" ${page>=totalPages-1?'disabled':''}>Next →</button>`;
+            bar.innerHTML = html;
+        }
+
+        function renderCards(profiles) {
+            const container = document.getElementById('matchesList');
+            if (!profiles || profiles.length === 0) {
+                container.innerHTML = '<p class="empty">No matches found. Try adjusting filters or complete your profile.</p>';
+                return;
+            }
+            container.innerHTML = profiles.map(p => cardHTML(p)).join('');
+        }
+
+        function cardHTML(p) {
+            const avatarHTML = p.profilePicture
+                ? `<img class="avatar avatar-img" src="${p.profilePicture}" alt="${p.userName}" />`
+                : `<div class="avatar">${p.userName.charAt(0).toUpperCase()}</div>`;
+
+            const qualityClass = qualityCSSClass(p.matchQuality);
+            const hasBreakdown = p.breakdown && p.breakdown.length > 0;
+
+            return `
+            <div class="match-card">
+                <div class="match-header">
+                    ${avatarHTML}
+                    <div class="match-name-block">
+                        <h3>${p.userName}</h3>
+                        <span class="city-tag">${p.city}${p.preferredArea ? ' · ' + p.preferredArea : ''}</span>
+                    </div>
+                    <div class="score-block">
+                        <div class="score-badge" style="background:${scoreColor(p.compatibilityScore)}">${p.compatibilityScore}%</div>
+                        ${p.matchQuality ? `<div class="quality-badge ${qualityClass}">${p.matchQuality}</div>` : ''}
+                    </div>
+                </div>
+                <div class="match-details">
+                    <span class="detail-tag">₹${p.budgetMin}–${p.budgetMax}/mo</span>
+                    ${p.sleepSchedule ? `<span class="detail-tag">${formatEnum(p.sleepSchedule)}</span>` : ''}
+                    ${p.cleanliness   ? `<span class="detail-tag">${formatEnum(p.cleanliness)}</span>`   : ''}
+                    ${p.occupation    ? `<span class="detail-tag">${p.occupation}</span>`                 : ''}
+                    ${p.petsAllowed   ? '<span class="detail-tag">🐾 Pets OK</span>'   : ''}
+                    ${p.smokingAllowed? '<span class="detail-tag">🚬 Smoking OK</span>': ''}
+                </div>
+                ${p.bio ? `<p class="bio">${p.bio}</p>` : ''}
+                <div class="match-actions">
+                    ${hasBreakdown ? `<button class="btn-ghost btn-sm" onclick='openModal(${JSON.stringify(p)})'>Why matched?</button>` : ''}
+                    <button class="btn-primary btn-sm" onclick="sendRequest(${p.userId}, this)">Send Request</button>
+                </div>
+            </div>`;
+        }
+
+        // ── Modal ────────────────────────────────────────────────────────
+        function openModal(p) {
+            document.getElementById('modalName').textContent = p.userName;
+            document.getElementById('modalSubtitle').textContent =
+                p.city + (p.preferredArea ? ' · ' + p.preferredArea : '') +
+                (p.occupation ? '  ·  ' + p.occupation : '');
+
+            const scoreBig = document.getElementById('modalScoreBig');
+            scoreBig.textContent = p.compatibilityScore + '%';
+            scoreBig.style.color = scoreColor(p.compatibilityScore);
+
+            // Quality badge
+            const qBadge = document.getElementById('modalQualityBadge');
+            qBadge.className = 'quality-badge ' + qualityCSSClass(p.matchQuality);
+            qBadge.textContent = p.matchQuality || '';
+
+            // Match summary
+            const summaryBox = document.getElementById('modalSummary');
+            const summaryText = document.getElementById('modalSummaryText');
+            if (p.matchSummary) {
+                summaryText.textContent = p.matchSummary;
+                summaryBox.classList.remove('hidden');
+            } else {
+                summaryBox.classList.add('hidden');
+            }
+
+            // Why matched sentences
+            const whyEl = document.getElementById('modalWhyMatched');
+            if (p.whyMatched && p.whyMatched.length) {
+                whyEl.innerHTML =
+                    '<div class="why-matched-title">Why you matched</div>' +
+                    p.whyMatched.map(s => {
+                        const icon = s.startsWith('✓') ? '✓' : s.startsWith('⚠') ? '⚠' : '✗';
+                        const cls  = icon === '✓' ? 'match' : icon === '⚠' ? 'partial' : 'mismatch';
+                        return `<div class="why-item">
+                            <span class="why-icon bd-${cls}">${icon}</span>
+                            <span class="why-text-${cls}">${s.slice(2)}</span>
+                        </div>`;
+                    }).join('');
+                whyEl.classList.remove('hidden');
+            } else {
+                whyEl.classList.add('hidden');
+            }
+
+            // Per-factor breakdown rows
+            const rowsEl = document.getElementById('modalBreakdownRows');
+            if (p.breakdown && p.breakdown.length) {
+                rowsEl.innerHTML = p.breakdown.map(f => `
+                    <div class="breakdown-row">
+                        <span class="bd-icon bd-${f.status.toLowerCase()}">${statusIcon(f.status)}</span>
+                        <span class="bd-label">${f.label}</span>
+                        <span class="bd-bar-wrap"><span class="bd-bar" style="width:${f.max>0?Math.round(f.earned/f.max*100):0}%"></span></span>
+                        <span class="bd-pts">${f.earned}/${f.max}</span>
+                    </div>
+                    <div class="bd-reason">${f.reason}</div>
+                `).join('');
+            } else {
+                rowsEl.innerHTML = '';
+            }
+
+            document.getElementById('compatModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('compatModal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        function closeModalOnOverlay(e) {
+            if (e.target === document.getElementById('compatModal')) closeModal();
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+        // ── Shared helpers ───────────────────────────────────────────────
+        async function sendRequest(receiverId, btn) {
+            btn.disabled = true;
+            btn.textContent = 'Sending…';
+            try {
+                const res = await fetch('/api/matches/send/' + receiverId, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    btn.textContent = '✓ Sent';
+                    btn.style.background = 'var(--good)';
+                    btn.style.color = '#06281c';
+                } else {
+                    btn.textContent = data.message || 'Error';
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                btn.textContent = 'Failed';
+                btn.disabled = false;
+            }
+        }
+
+        function statusIcon(s) { return s === 'MATCH' ? '✓' : s === 'PARTIAL' ? '⚠' : '✗'; }
+
+        function scoreColor(score) {
+            if (score >= 85) return '#34d399';
+            if (score >= 70) return '#fbbf24';
+            if (score >= 55) return '#fb923c';
+            return '#8b95a7';
+        }
+
+        function qualityCSSClass(q) {
+            if (!q) return '';
+            if (q.startsWith('Perfect'))   return 'quality-perfect';
+            if (q.startsWith('Excellent')) return 'quality-excellent';
+            if (q.startsWith('Good'))      return 'quality-good';
+            if (q.startsWith('Fair'))      return 'quality-fair';
+            return 'quality-low';
+        }
+
+        function formatEnum(val) {
+            return val.replace(/_/g,' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        async function loadUnreadBadge() {
+            try {
+                const res = await fetch('/api/messages/unread-count', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const { count } = await res.json();
+                const badge = document.getElementById('navUnreadBadge');
+                if (count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
+                else           { badge.classList.add('hidden'); }
+            } catch (_) {}
+        }
+
+        function logout() { localStorage.clear(); window.location.href = '/login'; }
+
+        loadPage(0);
+        loadUnreadBadge();
+    </script>
+</body>
+</html>
