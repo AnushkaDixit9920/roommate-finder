@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Profile - RoommateFinder</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/dashboard" class="nav-brand">Roommate<span class="accent-dot">Finder</span></a>
+        <div class="nav-links" id="navLinks">
+            <a href="/matches">Browse Matches</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+    </nav>
+
+    <div class="page-container">
+        <h2>Your Profile</h2>
+        <p class="subtitle">Fill in your preferences so we can find your best matches.</p>
+
+        <!-- ── Profile Completeness Indicator ──────────────────────────── -->
+        <div id="completenessWidget" class="completeness-widget hidden">
+            <div class="completeness-header">
+                <span class="completeness-label">Profile completeness</span>
+                <span id="completenessPercent" class="completeness-percent">0%</span>
+            </div>
+            <div class="completeness-track">
+                <div id="completenessBar" class="completeness-fill" style="width:0%"></div>
+            </div>
+            <div id="missingFieldsList" class="missing-fields"></div>
+        </div>
+
+        <div id="errorMsg" class="error-msg hidden"></div>
+        <div id="successMsg" class="success-msg hidden"></div>
+
+        <form id="profileForm" class="profile-form">
+
+            <!-- ── Profile Picture Upload ───────────────────────────────── -->
+            <div class="form-section">
+                <h3>Profile Picture</h3>
+                <div class="avatar-upload-row">
+                    <div id="avatarPreview" class="avatar avatar-lg">?</div>
+                    <div class="avatar-upload-info">
+                        <p class="small">Upload a photo (JPEG, PNG or WebP, max 5 MB)</p>
+                        <input type="file" id="pictureInput" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="uploadPicture()" />
+                        <button type="button" class="btn-ghost" onclick="document.getElementById('pictureInput').click()">Choose photo</button>
+                        <span id="uploadStatus" class="small"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Location & Budget</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>City *</label>
+                        <input type="text" id="city" placeholder="Delhi" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Preferred Area</label>
+                        <input type="text" id="preferredArea" placeholder="Lajpat Nagar" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Budget Min (₹/month) *</label>
+                        <input type="number" id="budgetMin" placeholder="5000" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Budget Max (₹/month) *</label>
+                        <input type="number" id="budgetMax" placeholder="10000" required />
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Lifestyle</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Sleep Schedule</label>
+                        <select id="sleepSchedule">
+                            <option value="">Select...</option>
+                            <option value="EARLY_BIRD">Early Bird</option>
+                            <option value="NIGHT_OWL">Night Owl</option>
+                            <option value="FLEXIBLE">Flexible</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cleanliness</label>
+                        <select id="cleanliness">
+                            <option value="">Select...</option>
+                            <option value="VERY_CLEAN">Very Clean</option>
+                            <option value="MODERATE">Moderate</option>
+                            <option value="RELAXED">Relaxed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Noise Level</label>
+                        <select id="noiseLevel">
+                            <option value="">Select...</option>
+                            <option value="QUIET">Quiet</option>
+                            <option value="MODERATE">Moderate</option>
+                            <option value="SOCIAL">Social</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row checkboxes">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="petsAllowed" /> Pets OK
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="smokingAllowed" /> Smoking OK
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="lookingForRoom" checked /> Looking for a room
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>About You</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" id="age" placeholder="21" />
+                    </div>
+                    <div class="form-group">
+                        <label>Occupation</label>
+                        <input type="text" id="occupation" placeholder="Software Engineer" />
+                    </div>
+                    <div class="form-group">
+                        <label>Gender Preference</label>
+                        <select id="genderPreference">
+                            <option value="ANY">Any</option>
+                            <option value="MALE">Male</option>
+                            <option value="FEMALE">Female</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Bio</label>
+                    <textarea id="bio" placeholder="Tell potential roommates about yourself..." rows="4"></textarea>
+                </div>
+            </div>
+
+            <!-- ── Matching Preferences (drag-to-rank) ──────────────────── -->
+            <div class="form-section">
+                <h3>Matching Priorities</h3>
+                <p class="section-hint">Drag factors to rank what matters most to you. Your top-ranked factor gets more weight in compatibility scores.</p>
+                <ul id="rankList" class="rank-list">
+                    <li class="rank-item" data-factor="budget">
+                        <span class="rank-handle">⠿</span>
+                        <span class="rank-label">Budget</span>
+                        <span class="rank-weight-badge" id="rw-budget">35 pts</span>
+                    </li>
+                    <li class="rank-item" data-factor="sleep">
+                        <span class="rank-handle">⠿</span>
+                        <span class="rank-label">Sleep Schedule</span>
+                        <span class="rank-weight-badge" id="rw-sleep">25 pts</span>
+                    </li>
+                    <li class="rank-item" data-factor="cleanliness">
+                        <span class="rank-handle">⠿</span>
+                        <span class="rank-label">Cleanliness</span>
+                        <span class="rank-weight-badge" id="rw-cleanliness">18 pts</span>
+                    </li>
+                    <li class="rank-item" data-factor="noise">
+                        <span class="rank-handle">⠿</span>
+                        <span class="rank-label">Noise Level</span>
+                        <span class="rank-weight-badge" id="rw-noise">12 pts</span>
+                    </li>
+                    <li class="rank-item" data-factor="pets">
+                        <span class="rank-handle">⠿</span>
+                        <span class="rank-label">Pets</span>
+                        <span class="rank-weight-badge" id="rw-pets">7 pts</span>
+                    </li>
+                    <li class="rank-item" data-factor="smoking">
+                        <span class="rank-handle">⠿</span>
+                        <span class="rank-label">Smoking</span>
+                        <span class="rank-weight-badge" id="rw-smoking">3 pts</span>
+                    </li>
+                </ul>
+            </div>
+
+            <button type="submit" class="btn-primary btn-full">Save Profile</button>
+        </form>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login';
+
+        let currentPictureUrl = null;
+
+        // ── Load existing profile ────────────────────────────────────────
+        async function loadProfile() {
+            try {
+                const res = await fetch('/api/profiles/me', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) return;
+                const p = await res.json();
+
+                document.getElementById('city').value = p.city || '';
+                document.getElementById('preferredArea').value = p.preferredArea || '';
+                document.getElementById('budgetMin').value = p.budgetMin || '';
+                document.getElementById('budgetMax').value = p.budgetMax || '';
+                document.getElementById('sleepSchedule').value = p.sleepSchedule || '';
+                document.getElementById('cleanliness').value = p.cleanliness || '';
+                document.getElementById('noiseLevel').value = p.noiseLevel || '';
+                document.getElementById('petsAllowed').checked = p.petsAllowed;
+                document.getElementById('smokingAllowed').checked = p.smokingAllowed;
+                document.getElementById('lookingForRoom').checked = p.lookingForRoom;
+                document.getElementById('age').value = p.age || '';
+                document.getElementById('occupation').value = p.occupation || '';
+                document.getElementById('genderPreference').value = p.genderPreference || 'ANY';
+                document.getElementById('bio').value = p.bio || '';
+
+                // Profile picture
+                if (p.profilePicture) {
+                    currentPictureUrl = p.profilePicture;
+                    setAvatarPreview(p.profilePicture);
+                } else {
+                    const name = localStorage.getItem('userName') || '?';
+                    document.getElementById('avatarPreview').textContent = name.charAt(0).toUpperCase();
+                }
+
+                // Matching priorities
+                applyStoredWeights(p);
+
+                // Completeness indicator
+                showCompleteness(p.completenessScore, p.missingFields);
+            } catch (e) {}
+        }
+
+        // ── Profile completeness ─────────────────────────────────────────
+        function showCompleteness(score, missing) {
+            const widget = document.getElementById('completenessWidget');
+            widget.classList.remove('hidden');
+
+            document.getElementById('completenessPercent').textContent = score + '%';
+
+            const bar = document.getElementById('completenessBar');
+            bar.style.width = score + '%';
+            bar.style.background = score >= 80 ? 'var(--good)' : score >= 50 ? 'var(--warn)' : 'var(--danger)';
+
+            const list = document.getElementById('missingFieldsList');
+            if (missing && missing.length > 0) {
+                list.innerHTML = '<span class="missing-label">Missing: </span>' +
+                    missing.map(f => `<span class="missing-tag">${f}</span>`).join('');
+            } else {
+                list.innerHTML = '<span class="complete-label">✓ Profile is complete!</span>';
+            }
+        }
+
+        // ── Profile picture upload ───────────────────────────────────────
+        async function uploadPicture() {
+            const file = document.getElementById('pictureInput').files[0];
+            if (!file) return;
+
+            const status = document.getElementById('uploadStatus');
+            status.textContent = 'Uploading…';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/profiles/me/picture', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    body: formData
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    status.textContent = '✗ ' + (err.message || 'Upload failed');
+                    return;
+                }
+
+                const data = await res.json();
+                currentPictureUrl = data.url;
+                setAvatarPreview(data.url);
+                status.textContent = '✓ Photo saved';
+                // Reload to refresh completeness score
+                setTimeout(loadProfile, 600);
+            } catch (e) {
+                status.textContent = '✗ Upload failed';
+            }
+        }
+
+        function setAvatarPreview(url) {
+            const el = document.getElementById('avatarPreview');
+            el.innerHTML = `<img src="${url}" alt="Profile photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+        }
+
+        // ── Save profile form ────────────────────────────────────────────
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                city: document.getElementById('city').value,
+                preferredArea: document.getElementById('preferredArea').value,
+                budgetMin: parseInt(document.getElementById('budgetMin').value) || 0,
+                budgetMax: parseInt(document.getElementById('budgetMax').value) || 0,
+                sleepSchedule: document.getElementById('sleepSchedule').value || null,
+                cleanliness: document.getElementById('cleanliness').value || null,
+                noiseLevel: document.getElementById('noiseLevel').value || null,
+                petsAllowed: document.getElementById('petsAllowed').checked,
+                smokingAllowed: document.getElementById('smokingAllowed').checked,
+                lookingForRoom: document.getElementById('lookingForRoom').checked,
+                age: parseInt(document.getElementById('age').value) || null,
+                occupation: document.getElementById('occupation').value,
+                genderPreference: document.getElementById('genderPreference').value,
+                bio: document.getElementById('bio').value,
+                ...getCurrentWeights()
+            };
+
+            try {
+                const res = await fetch('/api/profiles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify(body)
+                });
+                const updated = await res.json();
+                if (!res.ok) throw new Error(updated.message || updated.error || 'Failed to save profile');
+                showCompleteness(updated.completenessScore, updated.missingFields);
+                const el = document.getElementById('successMsg');
+                el.textContent = 'Profile saved! Completeness: ' + updated.completenessScore + '%';
+                el.classList.remove('hidden');
+                setTimeout(() => el.classList.add('hidden'), 3000);
+            } catch (err) {
+                const el = document.getElementById('errorMsg');
+                el.textContent = err.message;
+                el.classList.remove('hidden');
+            }
+        });
+
+        function logout() { localStorage.clear(); window.location.href = '/login'; }
+
+        // ── Drag-to-rank ─────────────────────────────────────────────────────
+        const RANK_WEIGHTS = [35, 25, 18, 12, 7, 3];
+        const FACTOR_MAP   = { budget: 'budgetWeight', sleep: 'sleepWeight',
+                               cleanliness: 'cleanlinessWeight', noise: 'noiseWeight',
+                               pets: 'petsWeight', smoking: 'smokingWeight' };
+
+        function initDragDrop() {
+            const list = document.getElementById('rankList');
+
+            list.querySelectorAll('.rank-item').forEach(item => {
+                const handle = item.querySelector('.rank-handle');
+                handle.addEventListener('mousedown', onDragStart);
+                handle.addEventListener('touchstart', onDragStart, { passive: false });
+            });
+
+            let dragging = null, clone = null, startY = 0, startScrollY = 0;
+
+            function onDragStart(e) {
+                e.preventDefault();
+                dragging = e.currentTarget.closest('.rank-item');
+                const rect = dragging.getBoundingClientRect();
+                startY = (e.touches ? e.touches[0].clientY : e.clientY);
+                startScrollY = window.scrollY;
+
+                clone = dragging.cloneNode(true);
+                clone.style.cssText = `
+                    position: fixed;
+                    left: ${rect.left}px;
+                    top: ${rect.top}px;
+                    width: ${rect.width}px;
+                    opacity: 0.85;
+                    pointer-events: none;
+                    z-index: 9999;
+                    background: var(--accent-soft);
+                    border: 1px solid var(--accent);
+                    border-radius: 8px;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+                `;
+                document.body.appendChild(clone);
+                dragging.style.opacity = '0.3';
+
+                document.addEventListener('mousemove', onDragMove);
+                document.addEventListener('mouseup',   onDragEnd);
+                document.addEventListener('touchmove', onDragMove, { passive: false });
+                document.addEventListener('touchend',  onDragEnd);
+            }
+
+            function onDragMove(e) {
+                if (!clone) return;
+                e.preventDefault();
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                const origTop = parseFloat(clone.style.top);
+                const dy = clientY - startY;
+                const baseTop = dragging.getBoundingClientRect().top;
+                clone.style.top = (baseTop + dy) + 'px';
+
+                list.querySelectorAll('.rank-item').forEach(item => item.classList.remove('drag-over'));
+                const target = getTargetItem(clientY);
+                if (target && target !== dragging) target.classList.add('drag-over');
+            }
+
+            function onDragEnd(e) {
+                if (!clone) return;
+                const clientY = e.touches ? e.changedTouches[0].clientY : e.clientY;
+                const target = getTargetItem(clientY);
+
+                if (target && target !== dragging) {
+                    const items = [...list.querySelectorAll('.rank-item')];
+                    const srcIdx  = items.indexOf(dragging);
+                    const destIdx = items.indexOf(target);
+                    if (srcIdx < destIdx) list.insertBefore(dragging, target.nextSibling);
+                    else                  list.insertBefore(dragging, target);
+                }
+
+                clone.remove(); clone = null;
+                dragging.style.opacity = '';
+                list.querySelectorAll('.rank-item').forEach(i => i.classList.remove('drag-over'));
+                dragging = null;
+                refreshWeightBadges();
+
+                document.removeEventListener('mousemove', onDragMove);
+                document.removeEventListener('mouseup',   onDragEnd);
+                document.removeEventListener('touchmove', onDragMove);
+                document.removeEventListener('touchend',  onDragEnd);
+            }
+
+            function getTargetItem(clientY) {
+                return [...list.querySelectorAll('.rank-item')].find(item => {
+                    const r = item.getBoundingClientRect();
+                    return clientY >= r.top && clientY <= r.bottom;
+                }) || null;
+            }
+        }
+
+        function refreshWeightBadges() {
+            const items = [...document.querySelectorAll('#rankList .rank-item')];
+            items.forEach((item, i) => {
+                const factor = item.dataset.factor;
+                const badge  = document.getElementById('rw-' + factor);
+                if (badge) badge.textContent = RANK_WEIGHTS[i] + ' pts';
+                // highlight top factor
+                item.classList.toggle('rank-top', i === 0);
+            });
+        }
+
+        function getCurrentWeights() {
+            const items = [...document.querySelectorAll('#rankList .rank-item')];
+            const w = {};
+            items.forEach((item, i) => {
+                const factor = item.dataset.factor;
+                w[FACTOR_MAP[factor]] = RANK_WEIGHTS[i];
+            });
+            return w;
+        }
+
+        function applyStoredWeights(profile) {
+            const factorWeights = {
+                budget:      profile.budgetWeight      || 30,
+                sleep:       profile.sleepWeight       || 20,
+                cleanliness: profile.cleanlinessWeight || 20,
+                noise:       profile.noiseWeight       || 15,
+                pets:        profile.petsWeight        || 10,
+                smoking:     profile.smokingWeight     || 5
+            };
+            const sorted = Object.entries(factorWeights).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+            const list = document.getElementById('rankList');
+            sorted.forEach(factor => {
+                const el = list.querySelector(`[data-factor="${factor}"]`);
+                if (el) list.appendChild(el);
+            });
+            // Re-attach drag listeners after DOM reorder
+            initDragDrop();
+            refreshWeightBadges();
+        }
+
+        // Init on page load (before profile loads)
+        initDragDrop();
+        refreshWeightBadges();
+        loadProfile();
+    </script>
+</body>
+</html>

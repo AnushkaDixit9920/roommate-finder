@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Messages - RoommateFinder</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/dashboard" class="nav-brand">Roommate<span class="accent-dot">Finder</span></a>
+        <div class="nav-links">
+            <a href="/matches">Browse</a>
+            <a href="/messages">Messages <span id="navBadge" class="nav-badge hidden"></span></a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/profile">Profile</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+    </nav>
+
+    <div class="page-container">
+        <h2>Messages</h2>
+        <p class="subtitle">Conversations with your accepted matches.</p>
+
+        <div id="inboxContainer"></div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login';
+
+        async function loadInbox() {
+            try {
+                const [convRes, unreadRes] = await Promise.all([
+                    fetch('/api/messages/conversations', { headers: { 'Authorization': 'Bearer ' + token } }),
+                    fetch('/api/messages/unread-count',  { headers: { 'Authorization': 'Bearer ' + token } })
+                ]);
+
+                const conversations = await convRes.json();
+                const { count } = await unreadRes.json();
+
+                // Nav badge
+                const badge = document.getElementById('navBadge');
+                if (count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
+
+                renderInbox(conversations);
+            } catch (e) {
+                document.getElementById('inboxContainer').innerHTML =
+                    '<p class="empty">Failed to load conversations.</p>';
+            }
+        }
+
+        function renderInbox(conversations) {
+            const el = document.getElementById('inboxContainer');
+
+            if (!conversations.length) {
+                el.innerHTML = `
+                    <div style="text-align:center;padding:60px 20px;color:var(--ink-dim);">
+                        <div style="font-size:40px;margin-bottom:16px;opacity:0.35;">💬</div>
+                        <p style="font-size:15px;margin:0 0 8px;color:var(--ink);">No conversations yet</p>
+                        <p style="font-size:13px;margin:0;">Accept a match request to start chatting.</p>
+                        <a href="/matches" class="btn-primary" style="display:inline-flex;margin-top:20px;">Browse Matches</a>
+                    </div>`;
+                return;
+            }
+
+            el.innerHTML = `<div class="inbox-list">` +
+                conversations.map(c => {
+                    const initial  = c.otherUserName.charAt(0).toUpperCase();
+                    const avatarHTML = c.otherUserPicture
+                        ? `<img src="${c.otherUserPicture}" alt="${c.otherUserName}" />`
+                        : initial;
+                    const preview  = c.lastMessage || 'Start the conversation';
+                    const timeStr  = c.lastMessageTime ? relativeTime(c.lastMessageTime) : '';
+                    const unread   = c.unreadCount > 0;
+
+                    return `
+                    <a href="/chat?match=${c.matchRequestId}" class="inbox-item ${unread ? 'unread' : ''}">
+                        <div class="inbox-avatar">${avatarHTML}</div>
+                        <div class="inbox-body">
+                            <div class="inbox-name">${c.otherUserName}</div>
+                            <div class="inbox-preview">${escHtml(preview)}</div>
+                        </div>
+                        <div class="inbox-meta">
+                            ${timeStr ? `<span class="inbox-time">${timeStr}</span>` : ''}
+                            ${unread ? `<span class="inbox-unread-badge">${c.unreadCount}</span>` : ''}
+                            <span class="quality-badge ${qualityCSSClass(c.matchQuality)}">${c.matchQuality}</span>
+                        </div>
+                    </a>`;
+                }).join('') +
+            `</div>`;
+        }
+
+        function relativeTime(iso) {
+            const diff = Date.now() - new Date(iso).getTime();
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1)   return 'Just now';
+            if (mins < 60)  return mins + 'm ago';
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24)   return hrs + 'h ago';
+            const days = Math.floor(hrs / 24);
+            if (days === 1) return 'Yesterday';
+            return days + 'd ago';
+        }
+
+        function qualityCSSClass(q) {
+            if (!q) return '';
+            if (q.startsWith('Perfect'))   return 'quality-perfect';
+            if (q.startsWith('Excellent')) return 'quality-excellent';
+            if (q.startsWith('Good'))      return 'quality-good';
+            if (q.startsWith('Fair'))      return 'quality-fair';
+            return 'quality-low';
+        }
+
+        function escHtml(s) {
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function logout() { localStorage.clear(); window.location.href = '/login'; }
+
+        loadInbox();
+    </script>
+</body>
+</html>

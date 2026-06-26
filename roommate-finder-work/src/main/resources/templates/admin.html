@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel - RoommateFinder</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/dashboard" class="nav-brand">Roommate<span class="accent-dot">Finder</span></a>
+        <div class="nav-links">
+            <span id="adminBadge" class="status-pill status-accepted" style="font-size:11px;">ADMIN</span>
+            <a href="/dashboard">Dashboard</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+    </nav>
+
+    <div class="page-container">
+        <h2>Admin Panel</h2>
+        <p class="subtitle">Manage users and monitor platform activity.</p>
+
+        <!-- ── Stats strip ───────────────────────────────────────────────── -->
+        <div class="admin-stats">
+            <div class="admin-stat-card">
+                <div class="admin-stat-num" id="statUsers">–</div>
+                <div class="admin-stat-label">Total Users</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-num" id="statMatches">–</div>
+                <div class="admin-stat-label">Accepted Matches</div>
+            </div>
+            <div class="admin-stat-card">
+                <div class="admin-stat-num" id="statPending">–</div>
+                <div class="admin-stat-label">Pending Requests</div>
+            </div>
+        </div>
+
+        <!-- ── Users table ───────────────────────────────────────────────── -->
+        <div class="dash-section" style="margin-top:28px;">
+            <h3>All Users</h3>
+            <div id="usersTable"></div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login';
+
+        async function get(url) {
+            const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+            if (res.status === 403) {
+                alert('Access denied. Admin only.');
+                window.location.href = '/dashboard';
+                return null;
+            }
+            return res.json();
+        }
+
+        async function loadAdmin() {
+            const [stats, users] = await Promise.all([
+                get('/api/admin/stats'),
+                get('/api/admin/users')
+            ]);
+            if (!stats || !users) return;
+
+            document.getElementById('statUsers').textContent = stats.totalUsers;
+            document.getElementById('statMatches').textContent = stats.totalMatches;
+            document.getElementById('statPending').textContent = stats.pendingRequests;
+
+            renderUsers(users);
+        }
+
+        function renderUsers(users) {
+            const el = document.getElementById('usersTable');
+            if (!users.length) { el.innerHTML = '<p class="empty">No users found.</p>'; return; }
+            el.innerHTML = `
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th><th>Name</th><th>Email</th>
+                            <th>Status</th><th>Role</th><th>Joined</th><th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(u => `
+                        <tr>
+                            <td class="mono">#${u.id}</td>
+                            <td>${u.name}</td>
+                            <td class="mono small">${u.email}</td>
+                            <td>
+                                <span class="status-pill ${u.enabled ? 'status-accepted' : 'status-pending'}">
+                                    ${u.enabled ? 'Active' : 'Unverified'}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-pill ${u.role === 'ADMIN' ? 'status-accepted' : 'status-pending'}">
+                                    ${u.role}
+                                </span>
+                            </td>
+                            <td class="small">${u.createdAt ? u.createdAt.split('T')[0] : '–'}</td>
+                            <td class="admin-actions">
+                                ${u.role !== 'ADMIN' ? `<button class="btn-ghost btn-xs" onclick="promoteUser(${u.id}, '${u.name}')">Make Admin</button>` : ''}
+                                <button class="btn-danger btn-xs" onclick="deleteUser(${u.id}, '${u.name}')">Delete</button>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        async function deleteUser(userId, name) {
+            if (!confirm(`Delete user "${name}"? This cannot be undone.`)) return;
+            const res = await fetch('/api/admin/users/' + userId, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await res.json();
+            alert(data.message || data.error);
+            loadAdmin();
+        }
+
+        async function promoteUser(userId, name) {
+            if (!confirm(`Promote "${name}" to ADMIN?`)) return;
+            const res = await fetch('/api/admin/users/' + userId + '/promote', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await res.json();
+            alert(data.message || data.error);
+            loadAdmin();
+        }
+
+        function logout() { localStorage.clear(); window.location.href = '/login'; }
+
+        loadAdmin();
+    </script>
+</body>
+</html>
